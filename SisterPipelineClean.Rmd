@@ -1,0 +1,119 @@
+---
+title: "SisterPipelineClean"
+output: html_notebook
+---
+
+# 1. Setting things up
+```{r}
+#Clean workspace
+rm(list=ls())
+```
+
+### Libraries
+```{r}
+library(streamgraph)
+library(dbplyr)
+library(gridExtra)
+library(readxl)
+library(pals)
+library(wordcloud2)
+library(tibble)
+library(readtext)
+library(quanteda)
+library(topicmodels)
+library(stm)
+library(tm)
+library(lda)
+library(beepr)
+library(reshape2)
+library(ggplot2)
+library(LDAvis)
+```
+
+### Load txt files
+```{r}
+txt_dir_na <- ("/Users/sarahjw/Dropbox/Quantitative text analysis/Sarah QTA/Sister paper local/Files/All_Files_Local/Non-Annex/all/")
+txt_dir_a1 <- ("/Users/sarahjw/Dropbox/Quantitative text analysis/Sarah QTA/Sister paper local/Files/All_Files_Local/Annex-I/all/")
+
+## create list of txt documents, preserving metadata
+txt_doc_na <- readtext(paste0(txt_dir_na,"*.txt"), docvarsfrom = "filenames", dvsep = "_", docvarnames = c("NC","Country", "Year", "Language","Section","Region"))
+txt_doc_a1 <- readtext(paste0(txt_dir_a1,"*.txt"), docvarsfrom = "filenames", dvsep = "_", docvarnames = c("NC","Country", "Year", "Language","Section","Region"))
+
+txt_doc_a1$annex = "annex1"
+txt_doc_na$annex = "nonannex"
+txt_doc <- rbind(txt_doc_a1,txt_doc_na)
+gsub("-","",txt_doc$text)
+save(txt_doc, file = "txt_doc.Rdata")
+```
+
+# 2. Prepping corpus
+### Cleaning
+```{r}
+#Create corpus
+NCtxt_corpus <- corpus(txt_doc)
+
+#Clean corpus, convert to dfm
+NCtxt_dfm <- dfm(NCtxt_corpus, tolower = TRUE, remove = stopwords("english"), remove_punct = TRUE,
+                        stem = TRUE, verbose = TRUE, remove_numbers = TRUE, remove_symbols = TRUE,
+                        split_hyphens = TRUE)
+
+NCtxt_dfm <- dfm_select(NCtxt_dfm, min_nchar=3L, 
+                        pattern=c("also","can","may","due","one","non","two","e.g","etc","i.e","now",
+                                  "see","sub","iii","day","six","via","yet","pre","1st","sf6",
+                                  "ten","men","age","tion","ing","ment","ter","cie","sion","cli","co",
+                                  "tor","iti"), selection = "remove", valuetype = "fixed", verbose = TRUE)
+NCtxt_dfm <- dfm_select(NCtxt_dfm,pattern=c("adriat","Alp","Alpin","America","Andes","Andean","appendix","Arabian","Arabl","Arctic","Asia","Asian","Atlant","Australian","Balkan","Baltic","Black","Canadian","Caribbean","Caspian","Danub","East","Eastern","Euro","Europ","European","Franc","German","Germani","Greec","hemispher","Indian","Itali","Japanes","Mediterranean","Nile","North","Northeast","Northeastern","Northward","Northwest","Northwestern","Norwegian","Pacif","Red","Rhine","Sahelian","Southeast","Southeastern","Southern","Southwest","Southwestern","Swiss","Victoria","West","xxi","Yellow","est","des","first","second","third","fourth","fifth","sixth","seventh"), selection = "remove", valuetype = "fixed", verbose = TRUE)
+NCtxt_dfm <- dfm_select(NCtxt_dfm,pattern=c("Afghanistan","Åland","Albania","Algeria","American","Samoa","Andorra","Angola","Anguilla","Antarctica","Antigua","Barbuda","Argentina","Armenia","Aruba","Australia","Austria","Azerbaijan","Bahamas","Bahrain","Bangladesh","Barbados","Belarus","Belgium","Belize","Benin","Bermuda","Bhutan","Bolivia","Bonaire","Sint","Eustatius","Saba","Bosnia","Herzegovina","Botswana","Bouvet","Brazil","Brunei","Darussalam","Bulgaria","Burkina","Faso","Burundi","Cambodia","Cameroon","Canada","Cape","Verde","Cayman","Central","African","Chad","Chile","China","Christmas","Cocos","Keeling","Colombia","Comoros","Congo","Congo","DRC","Cook","Costa","Rica","Côte","D'Ivoire","Ivory","Croatia","Cuba","Curaçao","Cyprus","Czech","Republic","Denmark","Djibouti","Dominica","Dominican","Republic","Ecuador","Egypt","El","Salvador","Equatorial","Guinea","Eritrea","Estonia","Ethiopia","Falkland","Malvinas","Faroe","Fiji","Finland","France","French","Guiana","French","Polynesia","Gabon","Gambia","Georgia","Germany","Ghana","Gibraltar","Greece","Greenland","Grenada","Guadeloupe","Guam","Guatemala","Guernsey","Guinea","Guinea-Bissau","Guyana","Haiti","Heard","McDonald","Vatican","Honduras","Hong","Kong","Hungary","Iceland","India","Indonesia","Iran","Iraq","Ireland","Israel","Italy","Jamaica","Japan","Jersey","Jordan","Kazakhstan","Kenya","Kiribati","Korea","DPRK","Korea","Kuwait","Kyrgyzstan","Lao","Laos","Latvia","Lebanon","Lesotho","Liberia","Libya","Liechtenstein","Lithuania","Luxembourg","Macao","Macedonia","Yugoslav","Madagascar","Malawi","Malaysia","Maldives","Mali","Malta","Marshall","Martinique","Mauritania","Mauritius","Mayotte","Mexico","Micronesia","Moldova","Monaco","Mongolia","Montenegro","Montserrat","Morocco","Mozambique","Myanmar","Namibia","Nauru","Nepal","Netherlands","Netherland","New","Caledonia","New","Zealand","Nicaragua","Niger","Nigeria","Niue","Norfolk","Northern","Mariana","Norway","Oman","Pakistan","Palau","Palestine","Panama","Papua","New","Guinea","Paraguay","Peru","Philippines","Pitcairn","Poland","Portugal","Puerto","Rico","Qatar","Reunion","Romania","Russian","Russia","Rwanda","Saint","Barthélemy","Saint","Helena","Ascension","Tristan","Da","Cunha","Saint","Kitts","Nevis","Saint","Lucia","Saint","Martin","Saint","Pierre","Miquelon","Saint","Vincent","Grenadines","Samoa","San","Marino","Sao","Tome","Principe","Saudi","Arabia","Senegal","Serbia","Seychelles","Sierra","Leone","Singapore","Sint","Maarten","Slovakia","Slovenia","Solomon","Somalia","South","Africa","South","Georgia","South","Sandwich","South","Sudan","Spain","Sri","Lanka","Sudan","Suriname","Svalbard","Jan","Mayen","Swaziland","Sweden","Switzerland","Syrian","Syria","Taiwan","Tajikistan","Tanzania","Thailand","Timor-Leste","Togo","Tokelau","Tonga","Trinidad","Tobago","Tunisia","Turkey","Turkmenistan","Turks","Caicos","Tuvalu","Uganda","Ukraine","United","Arab","Emirates","United","Kingdom","United","States","Uruguay","Uzbekistan","Vanuatu","Venezuela","Viet","Nam","Vietnam","Virgin","Wallis","Futuna","Western","Sahara","Yemen","Zambia","Zimbabwe"), selection = "remove", valuetype = "fixed", verbose = TRUE)
+NCtxt_dfm <- dfm_select(NCtxt_dfm,pattern=c("tri","tran","tem","tie","tation","mental","emi","per","will","cent","dri","res","con","com","fig","mate","tional","inc","tabl","just","a1b","daili","eros","forc","inde","sec","tive","tnc","toe","ture","gase","pro","mea","envi","duction","ban","creas","devel","latin","get","put"), selection = "remove", valuetype = "fixed", verbose = TRUE)
+NCtxt_dfm <- dfm_select(NCtxt_dfm,pattern=c("carbon","dioxide","co2","co2e","co2eq","dioxid"), selection = "remove", valuetype = "fixed", verbose = TRUE)
+## remove sparse terms
+NCtxt_dfm <- dfm_trim(NCtxt_dfm, min_termfreq = 120, min_docfreq = 30)
+beep() 
+```
+
+### Remove 10 most frequent terms
+```{r}
+NCtxtENG_freq <- textstat_frequency(NCtxt_dfm)
+head(NCtxtENG_freq,20)
+
+NCtxt_dfm <- dfm_trim(NCtxt_dfm,max_termfreq = 10000)
+
+save(NCtxt_dfm, file = "NCtxt_dfm.RData")
+
+```
+
+### Convert to stm format
+```{r}
+dtm <- convert(NCtxt_dfm, to = "stm")
+vocabulary = data.frame(dtm$vocab)
+```
+
+# 3. Topic modeling
+### SearchK
+```{r}
+skFine <- searchK(documents = dtm$documents, vocab = dtm$vocab, K=c(28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43))
+#skFineLow <- searchK(documents = dtm$documents, vocab = dtm$vocab, K=c(12,13,14,15,16,17,18))
+#skFineLower <- searchK(documents = dtm$documents, vocab = dtm$vocab, K=c(8,9,10,11,12,13,14,15))
+plot(skFine)
+```
+
+### Run topic model
+```{r}
+stm33<-stm(dtm$documents, dtm$vocab, K=33, , init.type = "Spectral", seed = 123)
+```
+
+### Label topics to inform naming
+```{r}
+labelTopics(stm33, n=10)
+```
+
+### Checking out topic correlates
+```{r}
+x = topicCorr(stm33, method = "simple", cutoff = 0.01,
+  verbose = TRUE)
+
+par(bg="transparent")
+plot(x, topics = NULL, vlabels = NULL,
+  layout = NULL, vertex.label.cex = 0.2,
+  vertex.label.color = "black", vertex.color = "white", vertex.size = 9)
+```
