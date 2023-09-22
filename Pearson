@@ -1,0 +1,37 @@
+#%% setting up data frame
+#Emissons data already in long form
+dfEm = pd.merge(df_gainWriYearly, ghgDf, left_on= ["ISO3", "Year"], right_on=["Code", "Year"])
+
+#GDP data is not -- melt, then merge
+gdpMeltDf = gdpRawDf.drop("Unnamed: 66", axis='columns', 
+                          ).melt(['Country Name', 'Country Code', 'Indicator Name', 'Indicator Code'],
+                                 var_name = 'Year', value_name = 'GDP PPP')
+gdpMeltDf['Year'] = pd.to_numeric(gdpMeltDf["Year"])
+dfEm = pd.merge(dfEm, gdpMeltDf, left_on= ["ISO3", "Year"], right_on=["Country Code", "Year"])
+#Same for per capita gdp
+gdpCapMeltDf = gdpRawDfCap.drop("Unnamed: 66", axis='columns'
+                                ).melt(['Country Name', 'Country Code', 'Indicator Name', 'Indicator Code'],
+                          var_name = 'Year', value_name = 'GDP PPP per Capita')
+gdpCapMeltDf['Year'] = pd.to_numeric(gdpCapMeltDf["Year"])
+dfEm = pd.merge(dfEm, gdpCapMeltDf, left_on= ["ISO3", "Year"], right_on=["Country Code", "Year"])
+
+dfEm["IAV - Mitigation score"]=dfEm["IAV_avg"]-dfEm["Miti_avg"]
+
+
+#%%Pearson
+dfEmSub = dfEm[['Miti_avg', 'IAV_avg', 'IAV - Mitigation score', 'CCT_avg', 'gain_Avg', 'wri_Avg', 'gainYr', 'wriYr', 'Per Capita', 'cumulative']]
+corDf_spearman = dfEmSub.corr(method='pearson')
+
+def pearson_pOnly(x,y):
+    return pearsonr(x,y)[1]
+
+pvals = dfEmSub.corr(method=pearson_pOnly)
+
+#Df with annotations
+#anDf = corDf_spearman.astype(str) + '\np=' + pvals.astype(str)
+
+plt.figure(figsize=(10,8), dpi=300)
+heatmap = sns.heatmap(corDf_spearman, vmin=-1, vmax=1,
+                      annot=True,
+                      #annot=anDf, fmt = '',
+                      annot_kws={"size": 10})
